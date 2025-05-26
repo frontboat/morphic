@@ -1,6 +1,5 @@
 import { getCurrentUserId } from '@/lib/auth/get-current-user'
-import { createManualToolStreamResponse } from '@/lib/streaming/create-manual-tool-stream'
-import { createToolCallingStreamResponse } from '@/lib/streaming/create-tool-calling-stream'
+import { createDaydreamsStreamResponse } from '@/lib/streaming/create-daydreams-stream'
 import { Model } from '@/lib/types/models'
 import { isProviderEnabled } from '@/lib/utils/registry'
 import { cookies } from 'next/headers'
@@ -57,23 +56,14 @@ export async function POST(req: Request) {
       )
     }
 
-    const supportsToolCalling = selectedModel.toolCallType === 'native'
-
-    return supportsToolCalling
-      ? createToolCallingStreamResponse({
-          messages,
-          model: selectedModel,
-          chatId,
-          searchMode,
-          userId
-        })
-      : createManualToolStreamResponse({
-          messages,
-          model: selectedModel,
-          chatId,
-          searchMode,
-          userId
-        })
+    // Use Daydreams agent for all chat interactions
+    return createDaydreamsStreamResponse({
+      messages,
+      model: selectedModel,
+      chatId,
+      searchMode,
+      userId
+    })
   } catch (error) {
     console.error('API route error:', error)
     return new Response('Error processing your request', {
