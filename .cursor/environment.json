@@ -1,0 +1,18 @@
+{
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "terminals": [
+    {
+      "name": "dev-server",
+      "command": "bun run dev"
+    },
+    {
+      "name": "pwd",
+      "command": "pwd"
+    }
+  ],
+  "install": "bun install",
+  "start": "bun run dev"
+}
