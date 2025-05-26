@@ -1,0 +1,164 @@
+---
+description: Agent Builder provides a visual interface for creating and configuring Daydreams AI agents within Morphic
+globs: 
+alwaysApply: false
+---
+# Agent Builder UI Components
+
+## Overview
+
+The Agent Builder provides a visual interface for creating and configuring Daydreams AI agents within Morphic. Located at [app/agent-builder/page.tsx](mdc:app/agent-builder/page.tsx), it allows users to visually design agents without writing code.
+
+## Core Components
+
+### 1. Main Page Component
+- **File**: [app/agent-builder/page.tsx](mdc:app/agent-builder/page.tsx)
+- **Route**: `/agent-builder`
+- **Features**:
+  - Agent configuration (name, model, instructions)
+  - Context and action management
+  - Code generation and export
+  - Live testing interface
+
+### 2. Action Editor
+- **File**: [components/agent-builder/action-editor.tsx](mdc:components/agent-builder/action-editor.tsx)
+- **Purpose**: Visual editor for creating and configuring agent actions
+- **Features**:
+  - Action name and description
+  - Zod schema definition
+  - Handler function implementation
+  - Collapsible UI for space efficiency
+
+### 3. Context Editor
+- **File**: [components/agent-builder/context-editor.tsx](mdc:components/agent-builder/context-editor.tsx)
+- **Purpose**: Configure agent contexts that define behavior and state
+- **Features**:
+  - Context type and description
+  - Custom instructions
+  - Action selection
+  - Schema configuration
+
+### 4. Agent Tester
+- **File**: [components/agent-builder/agent-tester.tsx](mdc:components/agent-builder/agent-tester.tsx)
+- **Purpose**: Test agents in real-time before deployment
+- **Features**:
+  - Live agent execution
+  - Streaming response display
+  - Debug information
+  - Error handling
+
+## Usage Patterns
+
+### Creating a New Agent
+
+1. **Basic Configuration**:
+   ```typescript
+   // Set agent name and select model
+   setAgentName('My Research Agent')
+   setSelectedModel(model)
+   ```
+
+2. **Add Actions**:
+   - Click "Add Action" button
+   - Define action name, description, schema, and handler
+   - Actions are automatically included in generated code
+
+3. **Configure Contexts**:
+   - Add contexts to define agent behavior
+   - Select which actions are available in each context
+   - Provide context-specific instructions
+
+4. **Export Code**:
+   - Click "Export Code" to generate TypeScript file
+   - Generated code includes all configurations
+   - Ready to use with `@daydreamsai/core`
+
+## Generated Code Structure
+
+The builder generates code following this pattern:
+
+```typescript
+import { createDreams, context, action } from '@daydreamsai/core'
+import { z } from 'zod'
+
+// Actions defined with schemas and handlers
+const searchAction = action({
+  name: 'search',
+  description: 'Search the web',
+  schema: z.object({ query: z.string() }),
+  handler: async (args) => {
+    // Implementation
+  }
+})
+
+// Contexts with instructions and available actions
+const researchContext = context({
+  type: 'research-context',
+  description: 'Context for research tasks',
+  instructions: `You are a research assistant...`,
+  actions: [searchAction],
+  create: async ({ args }) => {
+    return { /* initial state */ }
+  }
+})
+
+// Agent configuration
+export const agent = createDreams({
+  model: 'provider:model-id',
+  contexts: [researchContext],
+  actions: [searchAction]
+})
+```
+
+## Integration with Morphic
+
+### Available Templates
+- **Research Agent**: Pre-configured for web research using Morphic's search
+- **Task Automation**: General purpose automation agent
+- **Code Assistant**: Development-focused agent
+
+### Morphic Extensions
+The builder can import Morphic's built-in capabilities:
+- Morphic Search ([lib/tools/search.ts](mdc:lib/tools/search.ts))
+- Web Scraper
+- Database Query
+
+## State Management
+
+The builder uses React state to manage:
+- `agentName`: Agent identifier
+- `selectedModel`: AI model configuration
+- `instructions`: Default agent instructions
+- `contexts`: Array of context configurations
+- `actions`: Array of action definitions
+
+## Best Practices
+
+1. **Action Design**:
+   - Keep actions focused and single-purpose
+   - Use clear, descriptive names
+   - Define comprehensive schemas for type safety
+   - Handle errors gracefully in handlers
+
+2. **Context Configuration**:
+   - Provide clear instructions for each context
+   - Only include relevant actions
+   - Use context switching for different modes
+
+3. **Testing**:
+   - Test each action individually first
+   - Use the Agent Tester before exporting
+   - Verify streaming and error handling
+
+4. **Code Export**:
+   - Review generated code before use
+   - Add environment variables if needed
+   - Implement proper error handling
+
+## Future Enhancements
+
+- Import existing agent configurations
+- Share agents with the community
+- Version control integration
+- Advanced debugging tools
+- Performance profiling

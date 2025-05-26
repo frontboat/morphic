@@ -1,0 +1,277 @@
+---
+description: Guidelines for working with the Daydreams framework
+globs: 
+alwaysApply: false
+---
+# Daydreams AI Framework Guide
+
+## Overview
+
+Daydreams is a framework for building autonomous AI agents. At its core, an agent analyzes incoming information (inputs), reasons about it using a Large Language Model (LLM), and decides on the next steps, which could be generating a response (output) or performing a task (action). The results of actions feed back into the agent's awareness, creating a continuous loop orchestrated by the LLM.
+
+**Current Status**: ⚠️ Alpha software under active development. Expect frequent breaking changes and bugs. The API is not yet stable.
+
+## Mental Model (React-like Architecture)
+
+Daydreams follows a React-like mental model:
+- **Contexts** = React components (managing state and rendering)
+- **Actions** = Event handlers (responding to inputs and updating state)
+- **Extensions** = Component libraries (pre-built functionality bundles)
+- **The Agent** = React application (orchestrating everything)
+
+## Core Components
+
+### 1. Agent Lifecycle
+The agent operates in a continuous execution cycle:
+1. **Input Reception** → External events trigger the agent via inputs
+2. **Context Loading** → Finds/creates the appropriate context instance
+3. **LLM Reasoning** → Generates prompts with available actions/outputs
+4. **Action Execution** → Runs handlers via TaskRunner (concurrent, queued)
+5. **State Persistence** → Saves context memory automatically
+
+### 2. Contexts
+Contexts define specific scopes or workspaces for agent interactions:
+```typescript
+const chatContext = context<ChatMemory>({
+  type: "chat",
+  schema: z.object({ sessionId: z.string() }),
+  key: ({ sessionId }) => sessionId,
+  create: () => ({ messageHistory: [], userPreferences: {} }),
+  render: (state) => formatChatHistory(state.memory),
+  // Optional: Associate actions, inputs, outputs
+  actions: [sendMessageAction],
+});
+```
+
+### 3. Actions
+Actions are tools/capabilities the agent can use:
+```typescript
+const searchAction = action({
+  name: "searchDatabase",
+  description: "Searches the knowledge base",
+  schema: z.object({ 
+    query: z.string().describe("Search query"),
+    limit: z.number().optional().default(10)
+  }),
+  async handler(args, ctx, agent) {
+    // Access context memory: ctx.memory
+    // Use services: agent.container.resolve('database')
+    // Check cancellation: ctx.abortSignal
+    const results = await performSearch(args.query);
+    return { success: true, results };
+  }
+});
+```
+
+### 4. Inputs & Outputs
+- **Inputs**: How agents receive information from external sources
+- **Outputs**: How agents send information to external systems
+
+```typescript
+// Input example
+const webhookInput = input({
+  type: "api:webhook",
+  schema: z.object({ eventId: z.string(), payload: z.any() }),
+  subscribe: (send, agent) => {
+    // Listen for events and call send()
+    return () => { /* cleanup */ };
+  }
+});
+
+// Output example
+const discordOutput = output({
+  type: "discord:message",
+  schema: z.string(),
+  attributes: z.object({ channelId: z.string() }),
+  handler: async (content, ctx, agent) => {
+    await sendToDiscord(ctx.outputRef.params.channelId, content);
+  }
+});
+```
+
+### 5. Memory System
+Multi-layered memory architecture:
+- **Context Memory** (`ctx.memory`): Persistent state for specific instances
+- **Working Memory**: Temporary log for single run cycles
+- **Action Memory**: Persistent state tied to action definitions
+- **Agent Memory**: Global agent state
+- **Episodic Memory**: Vector-stored experiences for learning/recall
+
+### 6. Extensions
+Bundle related functionality:
+```typescript
+const myExtension = extension({
+  name: "my-feature",
+  services: [myApiService],
+  contexts: { myFeature: myFeatureContext },
+  actions: [myFeatureAction],
+  inputs: { "my-feature:event": eventInput },
+  outputs: { "my-feature:notify": notifyOutput }
+});
+```
+
+## Creating an Agent
+
+Basic setup:
+```typescript
+import { createDreams } from "@daydreamsai/core";
+import { openai } from "@ai-sdk/openai";
+import { cliExtension } from "@daydreamsai/cli";
+
+const agent = createDreams({
+  model: openai("gpt-4o-mini"),
+  extensions: [cliExtension],
+  contexts: [chatContext],
+  actions: [searchAction],
+  memory: createMemory(
+    mongoMemoryStore,   // For persistence
+    chromaVectorStore   // For episodic memory
+  ),
+  generateMemories: true,  // Enable episodic memory
+  logLevel: LogLevel.DEBUG
+});
+
+await agent.start();
+```
+
+## Prompting System
+
+Daydreams uses structured XML for LLM communication:
+```xml
+<response>
+  <reasoning>
+    [LLM's thought process]
+  </reasoning>
+  <action_call name="actionName">
+    [JSON arguments]
+  </action_call>
+  <output type="outputType" attribute="value">
+    [Content]
+  </output>
+</response>
+```
+
+## Best Practices
+
+### TypeScript & Type Safety
+- Use specific types over `Any*` types (e.g., `Action<MySchema>` not `AnyAction`)
+- Define interfaces for context memory structures
+- Use Zod schemas with `.describe()` for better LLM understanding
+
+### Action Development
+- Make handlers `async` for I/O operations
+- Implement cancellation checks: `ctx.abortSignal.aborted`
+- Design idempotent handlers when using `retry` option
+- Return structured results with success/error status
+
+### Context Design
+- Keep contexts scoped to distinct tasks/interactions
+- Associate related actions/inputs/outputs with contexts
+- Keep `render` functions concise and relevant
+- Initialize memory properly in `create`
+
+### Memory Management
+- Use `ctx.memory` for context-specific state
+- Choose appropriate storage backends (MongoDB, Supabase, etc.)
+- Enable episodic memory for learning capabilities
+- Export training data for model fine-tuning
+
+### Error Handling
+- Use try/catch blocks in handlers
+- Return meaningful error messages
+- Log errors with `agent.logger`
+- Handle validation errors gracefully
+
+## Advanced Features
+
+### GRPO Training Export
+```typescript
+const agent = createDreams({
+  exportTrainingData: true,
+  trainingDataPath: "./training-data.jsonl"
+});
+// Manual export
+await agent.exportAllTrainingData();
+```
+
+### MCP Integration
+```typescript
+import { mcpExtension } from "@daydreamsai/mcp";
+
+extensions: [
+  mcpExtension([{
+    id: "example-server",
+    transport: { type: "stdio", command: "node", args: ["server.js"] }
+  }])
+]
+```
+
+### Task Management
+- Actions run through TaskRunner with concurrency limits
+- Default concurrency: 3 simultaneous actions
+- Automatic retry support with `retry` option
+- Queue management for rate limiting
+
+## Development Tools
+
+### Recommended Setup
+- **Package Manager**: Bun (for speed and simplicity)
+- **Runtime**: Bun or Node.js 18+
+- **TypeScript**: Built-in support, no compilation needed with Bun
+
+### Debugging
+```typescript
+const agent = createDreams({
+  logger: LogLevel.DEBUG,  // or TRACE for maximum verbosity
+  // Custom logger transports available
+});
+```
+
+### Testing Patterns
+- Use in-memory stores for unit tests
+- Mock external services via DI container
+- Test actions in isolation with mock contexts
+
+## Common Patterns
+
+### Goal-Oriented Agents
+```typescript
+const goalContext = context({
+  type: "goal",
+  schema: z.object({ goal: z.string(), tasks: z.array(z.string()) }),
+  create: (state) => ({
+    goal: state.args.goal,
+    tasks: state.args.tasks,
+    currentTask: state.args.tasks[0]
+  })
+});
+```
+
+### API Integration
+```typescript
+const apiService = service({
+  register(container) {
+    container.singleton('apiClient', () => new ApiClient());
+  },
+  async boot(container) {
+    const client = container.resolve('apiClient');
+    await client.connect();
+  }
+});
+```
+
+### Multi-Context Coordination
+Agents can manage multiple context instances simultaneously, each with isolated state but shared access to actions and services.
+
+## File References
+- Main entry: [app/page.tsx](mdc:app/page.tsx)
+- API routes: [app/api/chat/route.ts](mdc:app/api/chat/route.ts)
+- Components: [components/](mdc:components)
+- Library code: [lib/](mdc:lib)
+
+## Resources
+- GitHub: https://github.com/daydreamsai/daydreams
+- Documentation: https://docs.dreams.fun/
+- Discord/X: For community support
+
+Remember: Daydreams abstracts the complexity of building AI agents while providing flexibility through its extension system. Focus on defining your agent's capabilities through contexts, actions, and clear schemas rather than managing the orchestration details.

@@ -1,0 +1,164 @@
+---
+description: integration between Morphic and the Daydreams AI framework
+globs: 
+alwaysApply: false
+---
+# Daydreams AI Integration with Morphic
+
+## Overview
+
+This project includes an integration between Morphic and the Daydreams AI framework, enabling autonomous AI agents to use Morphic's powerful search and retrieval capabilities. The integration includes both programmatic agent creation and a visual Agent Builder UI.
+
+## Key Components
+
+### 1. Main Agent Implementation
+- **File**: [lib/agents/daydreams-agent.ts](mdc:lib/agents/daydreams-agent.ts)
+- **Purpose**: Defines the Daydreams agent with three main actions:
+  - `searchAction`: Web search with customizable parameters
+  - `retrieveAction`: Content extraction from URLs
+  - `videoSearchAction`: YouTube video search
+- **Context**: `morphicResearchContext` - manages agent state and provides instructions
+
+### 2. Agent Builder UI
+- **Route**: `/agent-builder`
+- **Main File**: [app/agent-builder/page.tsx](mdc:app/agent-builder/page.tsx)
+- **Components**:
+  - [components/agent-builder/action-editor.tsx](mdc:components/agent-builder/action-editor.tsx) - Visual action creation
+  - [components/agent-builder/context-editor.tsx](mdc:components/agent-builder/context-editor.tsx) - Context configuration
+  - [components/agent-builder/agent-tester.tsx](mdc:components/agent-builder/agent-tester.tsx) - Live testing
+- **Features**: Visual agent design, code generation, live testing
+
+### 3. Testing Suite
+- **File**: [lib/agents/test-daydreams.ts](mdc:lib/agents/test-daydreams.ts)
+- **Tests**: Basic functionality, streaming, error handling, and action execution
+- **Run**: `bun run lib/agents/test-daydreams.ts`
+
+### 4. Examples and Demos
+- **Examples**: [lib/agents/daydreams-example.ts](mdc:lib/agents/daydreams-example.ts)
+- **Demo**: [lib/agents/demo-daydreams.ts](mdc:lib/agents/demo-daydreams.ts)
+- **Direct Action Test**: [lib/agents/test-actions.ts](mdc:lib/agents/test-actions.ts)
+- **Manual Researcher**: [lib/agents/manual-researcher.ts](mdc:lib/agents/manual-researcher.ts)
+
+## Usage Patterns
+
+### Programmatic Agent Creation
+```typescript
+import { morphicAgent } from './lib/agents/daydreams-agent'
+
+const results = await morphicAgent.run({
+    context: morphicResearchContext,
+    args: {
+        query: 'Your research query',
+        depth: 'basic' // or 'advanced'
+    }
+})
+```
+
+### Visual Agent Builder
+1. Navigate to `/agent-builder`
+2. Configure agent name, model, and instructions
+3. Add actions with schemas and handlers
+4. Create contexts with specific behaviors
+5. Test the agent in real-time
+6. Export generated TypeScript code
+
+### Streaming Integration
+```typescript
+await morphicAgent.run({
+    context: morphicResearchContext,
+    args: { query, depth: 'advanced' },
+    handlers: {
+        onLogStream: (log, done) => {
+            // Handle streaming updates
+        },
+        onThinking: (thought) => {
+            // Display agent's reasoning
+        }
+    }
+})
+```
+
+## Architecture
+
+The integration works by:
+1. Wrapping Morphic's search functions ([lib/tools/search.ts](mdc:lib/tools/search.ts)) as Daydreams actions
+2. Using Morphic's model registry ([lib/utils/registry.ts](mdc:lib/utils/registry.ts)) for AI model configuration
+3. Providing a research context that manages the agent's state and memory
+4. Enabling streaming updates for real-time UI integration
+5. Offering both code-based and visual agent creation methods
+
+## Key Dependencies
+
+- **Daydreams Core**: `@daydreamsai/core` - The autonomous agent framework
+- **Morphic Search**: [lib/tools/search.ts](mdc:lib/tools/search.ts) - Web search functionality
+- **Model Registry**: [lib/utils/registry.ts](mdc:lib/utils/registry.ts) - AI model configuration
+- **UI Components**: Morphic's component library for the Agent Builder
+
+## Current Status
+
+✅ **Working**:
+- Agent initialization and lifecycle management
+- Context processing and state management
+- Error handling and streaming
+- Direct search action calls
+- Visual Agent Builder UI
+- Code generation and export
+
+🔍 **In Progress**:
+- Automatic action selection by the agent
+- Enhanced prompting for better action usage
+- Pre-built agent templates
+- Community agent sharing
+
+## Extending the Integration
+
+### Adding New Actions
+1. Define the action using `action()` from `@daydreamsai/core`
+2. Add it to the `morphicResearchContext` actions array
+3. Update the context instructions to describe when to use it
+4. Optionally add to Agent Builder templates
+
+### Creating Custom Contexts
+```typescript
+const customContext = context({
+  type: 'custom-context',
+  description: 'Your context description',
+  instructions: `Detailed instructions...`,
+  actions: [/* your actions */],
+  create: async ({ args }) => {
+    return { /* initial state */ }
+  }
+})
+```
+
+### Integrating with Morphic's UI
+1. Use the streaming handlers to capture agent updates
+2. Connect to Morphic's existing UI components
+3. Display agent thoughts and actions in real-time
+4. Use the Agent Builder for visual configuration
+
+## Best Practices
+
+1. **Model Configuration**: Always use Morphic's model registry format: `providerId:modelId`
+2. **Error Handling**: The agent handles errors gracefully - check for empty results
+3. **Memory Management**: The agent maintains working memory and episodic memory automatically
+4. **Testing**: Run the test suite before making changes to ensure compatibility
+5. **Visual Design**: Use the Agent Builder for rapid prototyping before coding
+
+## Agent Builder Features
+
+- **Templates**: Pre-configured agents for common use cases
+- **Extensions**: Import Morphic capabilities as actions
+- **Live Testing**: Test agents before deployment
+- **Code Export**: Generate clean, runnable TypeScript code
+- **Model Selection**: Choose from available AI models
+
+## Future Enhancements
+
+- Integration with Morphic's UI components for agent visualization
+- Support for more Morphic tools (code search, documentation lookup)
+- Agent collaboration for complex research tasks
+- Training data export for improving agent performance
+- Agent marketplace for sharing configurations
+- Version control for agent definitions
+- Performance analytics and optimization

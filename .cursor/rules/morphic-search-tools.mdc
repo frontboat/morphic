@@ -1,0 +1,231 @@
+---
+description: Morphic provides a comprehensive set of search tools that power both the main application and the Daydreams AI integration
+globs: 
+alwaysApply: false
+---
+# Morphic Search Tools
+
+## Overview
+
+Morphic provides a comprehensive set of search tools that power both the main application and the Daydreams AI integration. These tools are located in [lib/tools/search.ts](mdc:lib/tools/search.ts) and related files.
+
+## Core Search Functions
+
+### 1. Basic Search
+- **Function**: `searchWeb(query: string, maxResults: number, searchDepth: 'basic' | 'advanced')`
+- **File**: [lib/tools/search.ts](mdc:lib/tools/search.ts)
+- **Purpose**: Performs web searches using configured search providers
+- **Returns**: Array of search results with title, link, snippet, and favicon
+
+### 2. Advanced Search
+- **Endpoint**: `/api/advanced-search`
+- **File**: [app/api/advanced-search/route.ts](mdc:app/api/advanced-search/route.ts)
+- **Features**:
+  - Multi-provider search aggregation
+  - Result deduplication
+  - Relevance scoring
+  - Source diversity
+
+### 3. Content Retrieval
+- **Function**: `retrieveWebContent(url: string)`
+- **Purpose**: Extracts and cleans content from web pages
+- **Features**:
+  - HTML parsing and cleaning
+  - Text extraction
+  - Metadata extraction
+  - Error handling for various content types
+
+### 4. Video Search
+- **Function**: `searchVideos(query: string)`
+- **Purpose**: Searches for relevant YouTube videos
+- **Returns**: Video results with title, URL, thumbnail, and description
+
+## Search Providers
+
+### Configuration
+- **File**: [public/config/search-providers.json](mdc:public/config/search-providers.json)
+- **Providers**:
+  - Google
+  - Bing
+  - DuckDuckGo
+  - Brave
+  - SearXNG (self-hosted option)
+
+### Provider Interface
+```typescript
+interface SearchProvider {
+  id: string
+  name: string
+  enabled: boolean
+  apiKey?: string
+  baseUrl?: string
+  weight?: number // for result ranking
+}
+```
+
+## Integration with Daydreams
+
+### Search Action
+```typescript
+const searchAction = action({
+  name: 'search',
+  description: 'Search the web for information',
+  schema: z.object({
+    query: z.string(),
+    maxResults: z.number().default(10),
+    searchDepth: z.enum(['basic', 'advanced']).default('basic')
+  }),
+  handler: async ({ query, maxResults, searchDepth }) => {
+    return await searchWeb(query, maxResults, searchDepth)
+  }
+})
+```
+
+### Retrieve Action
+```typescript
+const retrieveAction = action({
+  name: 'retrieve',
+  description: 'Extract content from a URL',
+  schema: z.object({
+    url: z.string().url()
+  }),
+  handler: async ({ url }) => {
+    return await retrieveWebContent(url)
+  }
+})
+```
+
+## Search Result Processing
+
+### Result Structure
+```typescript
+interface SearchResult {
+  title: string
+  link: string
+  snippet: string
+  favicon?: string
+  source?: string
+  relevanceScore?: number
+  publishedDate?: string
+}
+```
+
+### Ranking Algorithm
+1. **Provider Weight**: Results from preferred providers ranked higher
+2. **Query Relevance**: Title and snippet matching
+3. **Freshness**: Recent content prioritized
+4. **Domain Authority**: Trusted sources ranked higher
+5. **Diversity**: Ensures variety in sources
+
+## Advanced Features
+
+### 1. Caching
+- Results cached using Redis when available
+- Cache key: `search:${query}:${depth}:${timestamp}`
+- TTL: 1 hour for basic, 30 minutes for advanced
+
+### 2. Rate Limiting
+- Per-provider rate limits
+- Fallback to alternative providers
+- Queue management for high load
+
+### 3. Error Handling
+- Provider failover
+- Partial result handling
+- User-friendly error messages
+
+## Search Depth Strategies
+
+### Basic Search
+- Single provider query
+- Quick response time
+- Suitable for simple queries
+- Limited to 10-20 results
+
+### Advanced Search
+- Multi-provider aggregation
+- Content analysis
+- Related searches
+- Up to 50 results
+- Includes content extraction for top results
+
+## Performance Optimization
+
+1. **Parallel Requests**: Multiple providers queried simultaneously
+2. **Streaming Results**: Results returned as they arrive
+3. **Smart Caching**: Frequently searched queries cached
+4. **Connection Pooling**: Reuse HTTP connections
+
+## Configuration
+
+### Environment Variables
+```bash
+# Search provider API keys
+GOOGLE_SEARCH_API_KEY=
+BING_SEARCH_API_KEY=
+BRAVE_SEARCH_API_KEY=
+
+# SearXNG configuration
+SEARXNG_URL=http://localhost:8080
+SEARXNG_SECRET=
+
+# Redis for caching
+REDIS_URL=redis://localhost:6379
+```
+
+### Provider Selection
+```typescript
+// In lib/config/search.ts
+export const searchConfig = {
+  providers: {
+    google: { enabled: true, weight: 1.0 },
+    bing: { enabled: true, weight: 0.8 },
+    brave: { enabled: true, weight: 0.9 },
+    duckduckgo: { enabled: true, weight: 0.7 }
+  },
+  defaultDepth: 'basic',
+  maxResults: 20,
+  timeout: 5000
+}
+```
+
+## Best Practices
+
+1. **Query Optimization**:
+   - Clean and normalize queries
+   - Remove stop words for better results
+   - Use quotes for exact phrases
+
+2. **Error Handling**:
+   - Always have fallback providers
+   - Log failures for monitoring
+   - Provide meaningful error messages
+
+3. **Performance**:
+   - Use basic search for real-time needs
+   - Reserve advanced search for research
+   - Implement client-side caching
+
+4. **Security**:
+   - Validate and sanitize URLs
+   - Implement rate limiting
+   - Use HTTPS for all requests
+
+## Testing Search Tools
+
+```bash
+# Test basic search
+bun run lib/tools/test-search.ts "your query"
+
+# Test with Daydreams integration
+bun run lib/agents/test-actions.ts
+```
+
+## Future Enhancements
+
+- Semantic search capabilities
+- Custom ranking algorithms
+- Image and document search
+- Local file search integration
+- Search history and personalization
+- ML-based result improvement

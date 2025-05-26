@@ -1,0 +1,227 @@
+---
+description: Guidelines for understanding the Morphic codebase architecture and AI system
+globs: 
+alwaysApply: false
+---
+# Morphic Codebase Architecture & AI System
+
+## Overview
+Morphic is an open-source AI-powered answer engine with a generative UI, built using Next.js 14+ with App Router, TypeScript, and various AI/search integrations.
+
+## Core Architecture
+
+### Frontend Framework
+- **Next.js 14+ App Router** ([app](mdc:app) directory)
+- **TypeScript** for type safety
+- **Tailwind CSS** for styling ([tailwind.config.ts](mdc:tailwind.config.ts))
+- **Radix UI** + custom components in [components/ui](mdc:components/ui)
+
+### Main Application Structure
+
+#### App Directory (Next.js App Router)
+- **API Routes** ([app/api](mdc:app/api))
+  - [app/api/advanced-search/route.ts](mdc:app/api/advanced-search/route.ts) - Advanced search with web crawling capabilities
+  - [app/api/chat/route.ts](mdc:app/api/chat/route.ts) - Main chat endpoint supporting multiple AI models
+  - [app/api/chat/[id]/route.ts](mdc:app/api/chat/[id]/route.ts) - Chat deletion endpoint
+  - [app/api/chats/route.ts](mdc:app/api/chats/route.ts) - Chat history pagination
+- **Auth Pages** ([app/auth](mdc:app/auth))
+  - Login, signup, password reset, OAuth flows
+- **Search Pages** ([app/search](mdc:app/search))
+  - Dynamic search pages with chat interface
+- **Share Pages** ([app/share](mdc:app/share))
+  - Shareable chat conversations
+
+## Key Features & Components
+
+### AI Chat System
+Located in [components/chat.tsx](mdc:components/chat.tsx) and related files:
+- Multi-model support (OpenAI, Anthropic, Google, etc.)
+- Streaming responses with tool calling
+- Message history and persistence
+- Real-time typing indicators
+
+### Search Integration
+Multiple search providers in [lib/tools/search/providers](mdc:lib/tools/search/providers):
+- **Tavily** ([lib/tools/search/providers/tavily.ts](mdc:lib/tools/search/providers/tavily.ts)) - AI-powered search
+- **Exa** ([lib/tools/search/providers/exa.ts](mdc:lib/tools/search/providers/exa.ts)) - Neural search engine
+- **SearXNG** ([lib/tools/search/providers/searxng.ts](mdc:lib/tools/search/providers/searxng.ts)) - Self-hosted metasearch engine
+- Advanced web crawling with content extraction
+
+### Artifact System
+Located in [components/artifact](mdc:components/artifact):
+- Side panel for displaying search results, reasoning, and tool outputs
+- Responsive design with drawer on mobile
+- Support for various content types (search results, videos, retrieved content)
+
+### Tool System
+Located in [lib/tools](mdc:lib/tools):
+- **Search Tool** ([lib/tools/search.ts](mdc:lib/tools/search.ts)) - Web search with multiple providers
+- **Retrieve Tool** ([lib/tools/retrieve.ts](mdc:lib/tools/retrieve.ts)) - Content extraction from URLs
+- **Video Search Tool** ([lib/tools/video-search.ts](mdc:lib/tools/video-search.ts)) - YouTube video search via Serper API
+- **Question Tool** ([lib/tools/question.ts](mdc:lib/tools/question.ts)) - Interactive user questions during chat
+
+## How the AI Works
+
+### AI Model Integration
+- **Model Configuration**: [lib/config/models.ts](mdc:lib/config/models.ts)
+- **Model Selection UI**: [components/model-selector.tsx](mdc:components/model-selector.tsx)
+- Supports multiple providers: OpenAI, Anthropic, Google, Groq, and more
+- Dynamic model loading with fallbacks
+
+### Core AI Flow
+
+#### Request Pipeline ([app/api/chat/route.ts](mdc:app/api/chat/route.ts))
+1. User sends message → API endpoint
+2. Model selection → Checks user's selected model
+3. Stream type decision:
+   - Native tool calling → [lib/streaming/create-tool-calling-stream.ts](mdc:lib/streaming/create-tool-calling-stream.ts)
+   - Manual tool calling → [lib/streaming/create-manual-tool-stream.ts](mdc:lib/streaming/create-manual-tool-stream.ts)
+
+### Tool Calling System
+
+#### Native Tool Calling
+For models that support function calling (GPT-4, Claude 3, etc.):
+- Direct tool invocation via model's native capabilities
+- Automatic parameter extraction
+- Structured tool responses
+
+#### Manual Tool Calling
+For models without native support:
+- Uses XML-based tool calling format
+- Parses tool calls from model output ([lib/streaming/parse-tool-call.ts](mdc:lib/streaming/parse-tool-call.ts))
+- Manual parameter extraction and validation
+
+### AI Agents
+
+#### Researcher Agent ([lib/agents/researcher.ts](mdc:lib/agents/researcher.ts))
+The main AI agent that:
+1. Analyzes user queries
+2. Decides which tools to use
+3. Executes searches and retrieval
+4. Synthesizes information into answers
+
+#### Manual Researcher ([lib/agents/manual-researcher.ts](mdc:lib/agents/manual-researcher.ts))
+Alternative implementation for models without native tool support:
+- XML-based tool invocation
+- Step-by-step execution
+- Fallback compatibility
+
+### Advanced Search Integration
+
+#### SearXNG Advanced Search ([app/api/advanced-search/route.ts](mdc:app/api/advanced-search/route.ts))
+When search depth is "advanced":
+1. Initial Search: Fetches multiple results
+2. Web Crawling: Extracts full content from pages
+3. Content Scoring: Ranks by relevance
+4. Quality Filtering: Ensures meaningful content
+5. Caching: Redis-based result caching
+
+### Streaming & Real-time Responses
+
+#### Stream Processing ([lib/streaming](mdc:lib/streaming))
+1. Token Streaming: Real-time AI response display
+2. Tool Execution: Asynchronous tool calls during streaming
+3. Data Annotations: Metadata about tool usage
+4. Stream Completion: Post-processing and related questions
+
+## State Management & Data Flow
+
+### Chat State
+- Uses Vercel AI SDK's `useChat` hook
+- Message streaming and tool execution
+- Optimistic updates for user interactions
+
+### Data Persistence
+- **Redis** support (Upstash or local) for chat history
+- **Supabase** integration for authentication and user data
+- Configurable chat history saving
+
+## UI Component Library ([components/ui](mdc:components/ui))
+- Comprehensive set of reusable components
+- Built on Radix UI primitives
+- Includes specialized components like:
+  - [components/ui/skeleton.tsx](mdc:components/ui/skeleton.tsx) - Loading states
+  - [components/ui/drawer.tsx](mdc:components/ui/drawer.tsx) - Mobile-friendly panels
+  - [components/ui/resizable.tsx](mdc:components/ui/resizable.tsx) - Adjustable layout panels
+  - [components/ui/sidebar.tsx](mdc:components/ui/sidebar.tsx) - Navigation with chat history
+
+## Authentication System
+- **Supabase Auth** integration
+- Support for email/password and OAuth
+- Protected routes with middleware ([middleware.ts](mdc:middleware.ts))
+- User profile management
+
+## Advanced Features
+
+### Reasoning Display
+- Shows AI reasoning process in collapsible sections
+- Located in [components/reasoning-section.tsx](mdc:components/reasoning-section.tsx)
+
+### Related Questions
+- AI-generated follow-up questions
+- Located in [components/related-questions.tsx](mdc:components/related-questions.tsx)
+- Generated by [lib/agents/generate-related-questions.ts](mdc:lib/agents/generate-related-questions.ts)
+
+### Message Actions
+- Copy, retry, and share functionality
+- Edit user messages inline
+- Located in [components/message-actions.tsx](mdc:components/message-actions.tsx)
+
+## Configuration & Environment
+- Model configuration in [lib/config/models.ts](mdc:lib/config/models.ts)
+- Environment-based feature flags
+- Docker support for self-hosting ([Dockerfile](mdc:Dockerfile), [docker-compose.yaml](mdc:docker-compose.yaml))
+- SearXNG configuration ([searxng-settings.yml](mdc:searxng-settings.yml))
+
+## Key Technologies
+- **Next.js 14+** - React framework
+- **Vercel AI SDK** - AI model integration
+- **Supabase** - Auth & database
+- **Redis** - Caching and chat history
+- **Radix UI** - Accessible UI primitives
+- **Tailwind CSS** - Utility-first styling
+- **TypeScript** - Type safety
+- **Docker** - Containerization
+
+## AI Workflow Example
+
+When a user asks a question:
+
+1. **User Input**: "What are the latest developments in quantum computing?"
+
+2. **Model Processing**:
+   - Receives message
+   - Analyzes intent
+   - Determines need for web search
+
+3. **Tool Invocation**:
+   - Calls search tool with optimized query
+   - Searches across multiple sources
+   - Retrieves top results
+
+4. **Content Enhancement**:
+   - Crawls promising pages (if advanced mode)
+   - Extracts relevant content
+   - Scores and ranks information
+
+5. **Response Generation**:
+   - Synthesizes information
+   - Cites sources
+   - Formats with markdown
+   - Streams to user
+
+6. **Post-Processing**:
+   - Generates related questions
+   - Saves to chat history
+   - Updates UI state
+
+## Key AI Features
+
+- **Multi-Model Flexibility**: Switch between different AI providers
+- **Hybrid Intelligence**: Combines LLM reasoning with real-time web data
+- **Transparent Process**: Shows tool usage and reasoning
+- **Adaptive Responses**: Adjusts search depth based on query complexity
+- **Source Attribution**: Always cites information sources
+- **Continuous Learning**: Through conversation context and follow-ups
+
+This architecture creates an AI system that's not just a chatbot, but a comprehensive research assistant that can access current information, reason about it, and provide well-sourced, accurate responses.

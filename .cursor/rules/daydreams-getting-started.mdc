@@ -1,0 +1,310 @@
+---
+description: Getting Started with Daydreams Agents in Morphic
+globs: 
+alwaysApply: false
+---
+# Getting Started with Daydreams Agents in Morphic
+
+## Quick Start
+
+### 1. Prerequisites
+- Node.js 18+ or Bun
+- Morphic project set up and running
+- Basic understanding of TypeScript and React
+
+### 2. Installation
+```bash
+# Daydreams is already included in package.json
+bun install
+```
+
+### 3. Environment Setup
+Add to your `.env.local`:
+```bash
+# Required for agents
+OPENAI_API_KEY=your-key-here
+# Or use other providers configured in Morphic
+```
+
+## Creating Your First Agent
+
+### Option 1: Using the Visual Builder
+1. Navigate to `/agent-builder` in your browser
+2. Configure your agent:
+   - Name: "My First Agent"
+   - Model: Select from available models
+   - Instructions: "You are a helpful research assistant"
+3. Add actions (e.g., search, retrieve)
+4. Test in the builder
+5. Export the code
+
+### Option 2: Code-Based Approach
+Create a new file `lib/agents/my-agent.ts`:
+
+```typescript
+import { createDreams, context, action } from '@daydreamsai/core'
+import { z } from 'zod'
+import { searchWeb, retrieveWebContent } from '@/lib/tools/search'
+
+// Define a simple search action
+const searchAction = action({
+  name: 'search',
+  description: 'Search the web for information',
+  schema: z.object({
+    query: z.string().describe('The search query')
+  }),
+  handler: async ({ query }) => {
+    const results = await searchWeb(query, 10, 'basic')
+    return { results }
+  }
+})
+
+// Create a context
+const researchContext = context({
+  type: 'research',
+  description: 'Context for research tasks',
+  instructions: `You are a research assistant. Help users find information.`,
+  actions: [searchAction],
+  create: async () => ({ history: [] })
+})
+
+// Create the agent
+export const myAgent = createDreams({
+  model: 'openai:gpt-4-turbo-preview',
+  contexts: [researchContext],
+  actions: [searchAction]
+})
+```
+
+## Running Your Agent
+
+### Basic Execution
+```typescript
+import { myAgent } from './lib/agents/my-agent'
+
+const result = await myAgent.run({
+  context: researchContext,
+  args: {
+    query: 'Latest AI developments'
+  }
+})
+
+console.log(result)
+```
+
+### With Streaming
+```typescript
+await myAgent.run({
+  context: researchContext,
+  args: { query: 'Climate change solutions' },
+  handlers: {
+    onLogStream: (log, done) => {
+      console.log('Agent:', log)
+      if (done) console.log('Finished!')
+    },
+    onThinking: (thought) => {
+      console.log('Thinking:', thought)
+    }
+  }
+})
+```
+
+## Using Morphic's Built-in Agent
+
+The pre-configured Morphic agent is available at [lib/agents/daydreams-agent.ts](mdc:lib/agents/daydreams-agent.ts):
+
+```typescript
+import { morphicAgent, morphicResearchContext } from '@/lib/agents/daydreams-agent'
+
+// Use for research tasks
+const research = await morphicAgent.run({
+  context: morphicResearchContext,
+  args: {
+    query: 'quantum computing applications',
+    depth: 'advanced'
+  }
+})
+```
+
+## Common Patterns
+
+### 1. Multi-Step Research
+```typescript
+// Agent automatically handles multiple searches
+const deepResearch = await morphicAgent.run({
+  context: morphicResearchContext,
+  args: {
+    query: 'Build a comprehensive report on renewable energy',
+    depth: 'advanced'
+  }
+})
+```
+
+### 2. Content Extraction
+```typescript
+// Agent can retrieve and analyze web content
+const analysis = await morphicAgent.run({
+  context: morphicResearchContext,
+  args: {
+    query: 'Analyze the content at https://example.com/article',
+    depth: 'basic'
+  }
+})
+```
+
+### 3. UI Integration
+```typescript
+// In a React component
+function ResearchComponent() {
+  const [results, setResults] = useState([])
+  const [thinking, setThinking] = useState('')
+
+  const handleSearch = async (query: string) => {
+    await morphicAgent.run({
+      context: morphicResearchContext,
+      args: { query },
+      handlers: {
+        onThinking: setThinking,
+        onLogStream: (log) => {
+          if (log.includes('Found')) {
+            setResults(prev => [...prev, log])
+          }
+        }
+      }
+    })
+  }
+
+  return (
+    <div>
+      {thinking && <div>Agent is thinking: {thinking}</div>}
+      {results.map((r, i) => <div key={i}>{r}</div>)}
+    </div>
+  )
+}
+```
+
+## Testing Your Agents
+
+### Unit Tests
+```typescript
+// lib/agents/my-agent.test.ts
+import { myAgent, researchContext } from './my-agent'
+
+describe('My Agent', () => {
+  it('should search successfully', async () => {
+    const result = await myAgent.run({
+      context: researchContext,
+      args: { query: 'test query' }
+    })
+    
+    expect(result.results).toBeDefined()
+    expect(result.results.length).toBeGreaterThan(0)
+  })
+})
+```
+
+### Integration Tests
+Use the provided test files:
+```bash
+# Test the Morphic agent
+bun run lib/agents/test-daydreams.ts
+
+# Test individual actions
+bun run lib/agents/test-actions.ts
+```
+
+## Debugging
+
+### Enable Debug Logging
+```typescript
+const result = await myAgent.run({
+  context: researchContext,
+  args: { query: 'debug test' },
+  options: {
+    debug: true // Enables detailed logging
+  }
+})
+```
+
+### Common Issues
+
+1. **Model Not Found**
+   - Check model format: `providerId:modelId`
+   - Verify model is enabled in `/api/models`
+
+2. **Action Not Executing**
+   - Ensure action is included in context
+   - Check action schema matches input
+   - Verify handler doesn't throw errors
+
+3. **No Results**
+   - Check API keys are configured
+   - Verify search providers are enabled
+   - Test search function directly
+
+## Advanced Features
+
+### 1. Custom Extensions
+```typescript
+import { Extension } from '@daydreamsai/core'
+
+class AnalyticsExtension extends Extension {
+  async onActionComplete(action: string, result: any) {
+    // Track action usage
+    console.log(`Action ${action} completed`)
+  }
+}
+
+// Add to agent
+const agent = createDreams({
+  extensions: [new AnalyticsExtension()]
+})
+```
+
+### 2. Memory Persistence
+```typescript
+// Agents automatically maintain memory
+// Access it via:
+const memory = await agent.getMemory()
+console.log(memory.working) // Current working memory
+console.log(memory.episodic) // Past interactions
+```
+
+### 3. Multi-Agent Collaboration
+```typescript
+// Agents can work together
+const researcher = morphicAgent
+const analyzer = createDreams({ /* analyzer config */ })
+
+// Researcher finds data
+const data = await researcher.run({ /* ... */ })
+
+// Analyzer processes it
+const insights = await analyzer.run({
+  context: analysisContext,
+  args: { data: data.results }
+})
+```
+
+## Best Practices
+
+1. **Start Simple**: Begin with basic actions before complex workflows
+2. **Test Incrementally**: Test each action individually first
+3. **Handle Errors**: Always include error handling in action handlers
+4. **Use TypeScript**: Leverage type safety for better development experience
+5. **Monitor Performance**: Track action execution times
+6. **Document Actions**: Provide clear descriptions for better agent understanding
+
+## Next Steps
+
+1. Explore the [Agent Builder UI](mdc:app/agent-builder/page.tsx)
+2. Study the [example agents](mdc:lib/agents/daydreams-example.ts)
+3. Read the [Daydreams documentation](mdc:daydreamsai_llm.txt)
+
+## Resources
+
+- [Morphic Agent Implementation](mdc:lib/agents/daydreams-agent.ts)
+- [Search Tools](mdc:lib/tools/search.ts)
+- [Agent Builder](mdc:app/agent-builder/page.tsx)
+- [Test Suite](mdc:lib/agents/test-daydreams.ts)
+- [Examples](mdc:lib/agents/daydreams-example.ts)

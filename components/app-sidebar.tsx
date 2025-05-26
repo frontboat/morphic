@@ -9,7 +9,7 @@ import {
   SidebarTrigger
 } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
-import { Plus } from 'lucide-react'
+import { Plus, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { ChatHistorySection } from './sidebar/chat-history-section'
@@ -33,6 +33,14 @@ export default function AppSidebar() {
               <Link href="/" className="flex items-center gap-2">
                 <Plus className="size-4" />
                 <span>New</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <Link href="/agent-builder" className="flex items-center gap-2">
+                <Sparkles className="size-4" />
+                <span>Agent Builder</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
